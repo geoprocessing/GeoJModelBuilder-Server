@@ -1,0 +1,6 @@
+https://spring.io/guides/gs/accessing-data-mysql/
+test: http://localhost:8080/GeoJModelBuilder-Server/demo/add?name=First&email=someemail@someemailprovider.com
+
+
+configure
+JDK1.8, tomcat 8
