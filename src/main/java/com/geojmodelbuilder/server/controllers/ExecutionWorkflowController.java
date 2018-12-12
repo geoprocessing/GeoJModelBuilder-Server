@@ -1,5 +1,6 @@
 package com.geojmodelbuilder.server.controllers;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +23,7 @@ import com.geojmodelbuilder.engine.impl.WorkflowExecutor;
 import com.geojmodelbuilder.engine.impl.WorkflowExecutor.ExecutorStatus;
 import com.geojmodelbuilder.server.ServerResponse;
 import com.geojmodelbuilder.server.entities.AbstractExecutedResource;
+import com.geojmodelbuilder.server.entities.AbstractResource;
 import com.geojmodelbuilder.server.entities.ExecutedWorkflowInfo;
 import com.geojmodelbuilder.server.entities.ExecutedWorkflowInfoRepository;
 import com.geojmodelbuilder.xml.deserialization.XML2Instance;
@@ -32,7 +34,7 @@ import com.geojmodelbuilder.xml.serialization.Instance2XML;
 public class ExecutionWorkflowController implements IListener{
 	@Autowired
 	private ExecutedWorkflowInfoRepository execrepoitory;
-	private static Map<String, WorkflowExecutor> ExecutorPool = new HashMap<String, WorkflowExecutor>();
+	private static Map<String, WorkflowExecutor> RunningPool = new HashMap<String, WorkflowExecutor>();
 	
 	 @PostMapping("/submit")
 	 public ServerResponse add(@RequestBody String xmlText){
@@ -49,33 +51,41 @@ public class ExecutionWorkflowController implements IListener{
 		 WorkflowExecutor executor = new WorkflowExecutor(workflowInstance);
 		 executor.run();
 		 executor.getEngine().subscribe(this, EventType.Stopped);
-		 ExecutorPool.put(uuid,executor );
+		 RunningPool.put(uuid,executor );
 	
 		 return new ServerResponse(200, "success", uuid);
 	 }
 	 
-	 /*
-	 @RequestMapping("/all")
-	 public ServerResponse all()
-	 {
-		 Iterable<ExecutedWorkflowInfo> allWorkflowInfos = execrepoitory.findAll();
+	@RequestMapping("/detail/{uuid}")
+	public Object detail(@PathVariable String uuid) {
+		 ExecutedWorkflowInfo workflowInfo = execrepoitory.findWorkflowByTaskId(uuid);
+		 if(workflowInfo == null)
+			 return new ServerResponse(400, "no task with this id", "");
 		 
-		 List<AbstractResource> workflows = new ArrayList<AbstractResource>();
-		 for(TemplateWorkflowInfo workflowInfo : allWorkflowInfos){
-			 AbstractResource resource = new AbstractResource();
-			 resource.setId(workflowInfo.getId());
-			 resource.setIdentifier(workflowInfo.getIdentifier());
-			 resource.setTitle(workflowInfo.getTitle());
-			 resource.setDescription(workflowInfo.getDescription());
+		 return workflowInfo.getXmlText();
+	 }
+	 
+	 @RequestMapping("/running")
+	 public ServerResponse Running(){
+		 List<RunningResource> workflows = new ArrayList<ExecutionWorkflowController.RunningResource>();
+		 for(String uuid:RunningPool.keySet()){
+			 RunningResource resource = new ExecutionWorkflowController.RunningResource();
+			 resource.uuid = uuid;
+			 
+			 WorkflowExecutor executor = RunningPool.get(uuid);
+			 IWorkflowInstance workflowInstance = executor.getEngine().getWorkflow();
+			 
+			 resource.setIdentifier(workflowInstance.getID());
+			 resource.setTitle(workflowInstance.getName());
+			 resource.setDescription(workflowInstance.getDescription());
 			 workflows.add(resource);
 		 }
 		 return new ServerResponse(200, "success", workflows);
 	 }
-	 */
 	 
 	 @RequestMapping("/status/{uuid}")
 		public ServerResponse status(@PathVariable String uuid) {
-			WorkflowExecutor executor = ExecutorPool.get(uuid);
+			WorkflowExecutor executor = RunningPool.get(uuid);
 			AbstractExecutedResource resource = new AbstractExecutedResource();
 			if (executor != null) {
 				List<IProcess> processes = executor.getExecutedProcess();
@@ -108,11 +118,11 @@ public class ExecutionWorkflowController implements IListener{
 	  * update the executor pool
 	  */
 	public void update() {
-		for (String uuid : ExecutorPool.keySet()) {
-			WorkflowExecutor executor = ExecutorPool.get(uuid);
+		for (String uuid : RunningPool.keySet()) {
+			WorkflowExecutor executor = RunningPool.get(uuid);
 			if (executor.getStatus() != WorkflowExecutor.ExecutorStatus.RUNNING) {
 				this.save(uuid, executor);
-				ExecutorPool.remove(uuid);
+				RunningPool.remove(uuid);
 			}
 		}
 	}
@@ -143,5 +153,9 @@ public class ExecutionWorkflowController implements IListener{
 	@Override
 	public void onEvent(IProcessEvent arg0) {
 		this.update();
+	}
+	
+	private class RunningResource extends AbstractResource{
+		protected String uuid;
 	}
 }
