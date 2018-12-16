@@ -7,10 +7,12 @@ import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.geojmodelbuilder.core.instance.impl.WorkflowInstance;
@@ -29,6 +31,11 @@ public class TemplateWorkflowController {
 	private TemplateWorkflowInfoRepository repository;
 	private static Map<String, WorkflowExecutor> executor = new HashMap<String, WorkflowExecutor>();
 	
+	/**
+	 * Submit a new template workflow
+	 * @param xmlText xml text that represents the workflow
+	 * @return
+	 */
 	 @PostMapping("/add")
 	 public ServerResponse add(@RequestBody String xmlText){
 		 
@@ -56,7 +63,11 @@ public class TemplateWorkflowController {
 		 return new ServerResponse(200, "success", workflowInfo.getId());
 	 }
 	 
-	 @RequestMapping("/all")
+	 /**
+	  * returns all template workflows
+	  * @return
+	  */
+	 @GetMapping("/all")
 	 public ServerResponse all()
 	 {
 		 Iterable<TemplateWorkflowInfo> allWorkflowInfos = repository.findAll();
@@ -64,7 +75,7 @@ public class TemplateWorkflowController {
 		 List<AbstractResource> workflows = new ArrayList<AbstractResource>();
 		 for(TemplateWorkflowInfo workflowInfo : allWorkflowInfos){
 			 AbstractResource resource = new AbstractResource();
-			 resource.setId(workflowInfo.getId());
+			 //resource.setId(workflowInfo.getId());
 			 resource.setIdentifier(workflowInfo.getIdentifier());
 			 resource.setTitle(workflowInfo.getTitle());
 			 resource.setDescription(workflowInfo.getDescription());
@@ -73,7 +84,26 @@ public class TemplateWorkflowController {
 		 return new ServerResponse(200, "success", workflows);
 	 }
 	 
-	 @RequestMapping("/detail/{id}")
+	 /**
+	  * return the xml that represents the workflow
+	  * @param identifier, identifier for this workflow
+	  * @return
+	  */
+	 @GetMapping("/detail/")
+	 public Object detail(@RequestParam("identifier") String identifier){
+		TemplateWorkflowInfo  workflow = repository.findWorkflowById(identifier);
+		if(workflow!=null)
+			return workflow.getXmlText();
+		
+		return new ServerResponse(200, "no value", "there is no recod with this id");
+	 }
+	 
+	 /**
+	  * return the xml that represents the workflow
+	  * @param id
+	  * @return
+	  */
+	 @GetMapping("/detail/{id}")
 	 public Object detail(@PathVariable Integer id){
 		Optional<TemplateWorkflowInfo>  workflow = repository.findById(id);
 		if(workflow.isPresent())

@@ -6,12 +6,15 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.geojmodelbuilder.core.IProcess;
 import com.geojmodelbuilder.core.instance.IWorkflowInstance;
 import com.geojmodelbuilder.core.instance.impl.WorkflowInstance;
@@ -26,8 +29,8 @@ import com.geojmodelbuilder.server.entities.AbstractExecutedResource;
 import com.geojmodelbuilder.server.entities.AbstractResource;
 import com.geojmodelbuilder.server.entities.ExecutedWorkflowInfo;
 import com.geojmodelbuilder.server.entities.ExecutedWorkflowInfoRepository;
+import com.geojmodelbuilder.server.util.ExecutedWorkflowInfoGenerator;
 import com.geojmodelbuilder.xml.deserialization.XML2Instance;
-import com.geojmodelbuilder.xml.serialization.Instance2XML;
 
 @RestController
 @RequestMapping(path="/workflow/execution") 
@@ -36,6 +39,11 @@ public class ExecutionWorkflowController implements IListener{
 	private ExecutedWorkflowInfoRepository execrepoitory;
 	private static Map<String, WorkflowExecutor> RunningPool = new HashMap<String, WorkflowExecutor>();
 	
+	/**
+	 * executes the workflow
+	 * @param xmlText, xml text that represents the workflow
+	 * @return
+	 */
 	 @PostMapping("/submit")
 	 public ServerResponse add(@RequestBody String xmlText){
 		 
@@ -56,16 +64,28 @@ public class ExecutionWorkflowController implements IListener{
 		 return new ServerResponse(200, "success", uuid);
 	 }
 	 
-	@RequestMapping("/detail/{uuid}")
-	public Object detail(@PathVariable String uuid) {
+	 /**
+	  * Check the detail of the workflow execution
+	  * @param uuid
+	  * @return
+	  */
+	@GetMapping("/detail/")
+	public Object detail(@RequestParam("uuid") String uuid) {
 		 ExecutedWorkflowInfo workflowInfo = execrepoitory.findWorkflowByTaskId(uuid);
 		 if(workflowInfo == null)
 			 return new ServerResponse(400, "no task with this id", "");
+		 XML2Instance xml2Instance = new XML2Instance();
+		 IWorkflowInstance workflowInstance = xml2Instance.parse(workflowInfo.getXmlText());
 		 
-		 return workflowInfo.getXmlText();
+		 return workflowInstance;
+//		 return workflowInfo.getXmlText();
 	 }
 	 
-	 @RequestMapping("/running")
+	/**
+	 * return all the workflows that are running.
+	 * @return
+	 */
+	 @GetMapping("/running/all")
 	 public ServerResponse Running(){
 		 List<RunningResource> workflows = new ArrayList<ExecutionWorkflowController.RunningResource>();
 		 for(String uuid:RunningPool.keySet()){
@@ -83,7 +103,12 @@ public class ExecutionWorkflowController implements IListener{
 		 return new ServerResponse(200, "success", workflows);
 	 }
 	 
-	 @RequestMapping("/status/{uuid}")
+	 /**
+	  * check the status of the workflow execution.
+	  * @param uuid
+	  * @return
+	  */
+	 @GetMapping("/status/{uuid}")
 		public ServerResponse status(@PathVariable String uuid) {
 			WorkflowExecutor executor = RunningPool.get(uuid);
 			AbstractExecutedResource resource = new AbstractExecutedResource();
@@ -107,17 +132,16 @@ public class ExecutionWorkflowController implements IListener{
 				resource.setStatus(ExecutorStatus.FAILED);
 			}
 			
-			resource.setId(workflowInfo.getId());
+			//resource.setId(workflowInfo.getId());
 			resource.setTitle(workflowInfo.getTitle());
 			resource.setDescription(workflowInfo.getDescription());		
 			return new ServerResponse(200, resource.getStatus().toString(), resource);
 		}
 
-	
 	 /**
 	  * update the executor pool
 	  */
-	public void update() {
+	public synchronized void update() {
 		for (String uuid : RunningPool.keySet()) {
 			WorkflowExecutor executor = RunningPool.get(uuid);
 			if (executor.getStatus() != WorkflowExecutor.ExecutorStatus.RUNNING) {
@@ -128,28 +152,11 @@ public class ExecutionWorkflowController implements IListener{
 	}
 
 	public boolean save(String uuid, WorkflowExecutor executor) {
-		IWorkflowInstance workflowInstance = executor.getEngine().getWorkflow();
-		ExecutedWorkflowInfo workflowInfo = new ExecutedWorkflowInfo();
-		workflowInfo.setTitle(workflowInstance.getName());
-		workflowInfo.setDescription(workflowInstance.getDescription());
-		workflowInfo.setTaskId(uuid);
-		workflowInfo.setIdentifier(workflowInstance.getID());
-		
-		if(executor.getStatus()== WorkflowExecutor.ExecutorStatus.FAILED)
-			workflowInfo.setSucceeded(false);
-		else {
-			workflowInfo.setSucceeded(true);
-		}
-		
-		// need to save the provenance information
-		Instance2XML instance2xml = new Instance2XML(workflowInstance);
-		workflowInfo.setXmlText(instance2xml.xmlText());
-
-		//new ExecutedWorkflowDB().save(workflowInfo);
+		ExecutedWorkflowInfo workflowInfo = new ExecutedWorkflowInfoGenerator().generate(uuid, executor);
 		execrepoitory.save(workflowInfo);
-		//templateRepository.save(templateWorkflowInfo);
 		return true;
 	}
+	
 	@Override
 	public void onEvent(IProcessEvent arg0) {
 		this.update();
