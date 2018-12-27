@@ -11,10 +11,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.geojmodelbuilder.core.IProcess;
 import com.geojmodelbuilder.core.instance.IWorkflowInstance;
 import com.geojmodelbuilder.core.instance.impl.WorkflowInstance;
@@ -29,118 +27,141 @@ import com.geojmodelbuilder.server.entities.AbstractExecutedResource;
 import com.geojmodelbuilder.server.entities.AbstractResource;
 import com.geojmodelbuilder.server.entities.ExecutedWorkflowInfo;
 import com.geojmodelbuilder.server.entities.ExecutedWorkflowInfoRepository;
-import com.geojmodelbuilder.server.util.ExecutedWorkflowInfoGenerator;
+import com.geojmodelbuilder.server.util.ExecutedWorkflowInfoUtil;
 import com.geojmodelbuilder.xml.deserialization.XML2Instance;
 
 @RestController
-@RequestMapping(path="/workflow/execution") 
-public class ExecutionWorkflowController implements IListener{
+@RequestMapping(path = "/workflow/execution")
+public class ExecutionWorkflowController implements IListener {
 	@Autowired
 	private ExecutedWorkflowInfoRepository execrepoitory;
 	private static Map<String, WorkflowExecutor> RunningPool = new HashMap<String, WorkflowExecutor>();
-	
+
 	/**
 	 * executes the workflow
-	 * @param xmlText, xml text that represents the workflow
+	 * 
+	 * @param xmlText
+	 *            , xml text that represents the workflow
 	 * @return
 	 */
-	 @PostMapping("/submit")
-	 public ServerResponse add(@RequestBody String xmlText){
-		 
-		 XML2Instance xml2Instance = new XML2Instance();
-		 WorkflowInstance workflowInstance = xml2Instance.parse(xmlText);
-		 
-		 if(workflowInstance == null)
-		 {
-			 String err = xml2Instance.getErrInfo();
-			 return new ServerResponse(400, "Failure", err);
-		 }
-		 String uuid = IDGenerator.uuid();
-		 WorkflowExecutor executor = new WorkflowExecutor(workflowInstance);
-		 executor.run();
-		 executor.getEngine().subscribe(this, EventType.Stopped);
-		 RunningPool.put(uuid,executor );
-	
-		 return new ServerResponse(200, "success", uuid);
-	 }
-	 
-	 /**
-	  * Check the detail of the workflow execution
-	  * @param uuid
-	  * @return
-	  */
-	@GetMapping("/detail/")
-	public Object detail(@RequestParam("uuid") String uuid) {
-		 ExecutedWorkflowInfo workflowInfo = execrepoitory.findWorkflowByTaskId(uuid);
-		 if(workflowInfo == null)
-			 return new ServerResponse(400, "no task with this id", "");
-		 XML2Instance xml2Instance = new XML2Instance();
-		 IWorkflowInstance workflowInstance = xml2Instance.parse(workflowInfo.getXmlText());
-		 
-		 return workflowInstance;
-//		 return workflowInfo.getXmlText();
-	 }
-	 
+	@PostMapping("/submit")
+	public ServerResponse add(@RequestBody String xmlText) {
+
+		XML2Instance xml2Instance = new XML2Instance();
+		WorkflowInstance workflowInstance = xml2Instance.parse(xmlText);
+
+		if (workflowInstance == null) {
+			String err = xml2Instance.getErrInfo();
+			return new ServerResponse(400, "Failure", err);
+		}
+		String uuid = IDGenerator.uuid();
+		WorkflowExecutor executor = new WorkflowExecutor(workflowInstance);
+		executor.run();
+		executor.getEngine().subscribe(this, EventType.Stopped);
+		RunningPool.put(uuid, executor);
+
+		return new ServerResponse(200, "success", uuid);
+	}
+
 	/**
 	 * return all the workflows that are running.
+	 * 
 	 * @return
 	 */
-	 @GetMapping("/running/all")
-	 public ServerResponse Running(){
-		 List<RunningResource> workflows = new ArrayList<ExecutionWorkflowController.RunningResource>();
-		 for(String uuid:RunningPool.keySet()){
-			 RunningResource resource = new ExecutionWorkflowController.RunningResource();
-			 resource.uuid = uuid;
-			 
-			 WorkflowExecutor executor = RunningPool.get(uuid);
-			 IWorkflowInstance workflowInstance = executor.getEngine().getWorkflow();
-			 
-			 resource.setIdentifier(workflowInstance.getID());
-			 resource.setTitle(workflowInstance.getName());
-			 resource.setDescription(workflowInstance.getDescription());
-			 workflows.add(resource);
-		 }
-		 return new ServerResponse(200, "success", workflows);
-	 }
-	 
-	 /**
-	  * check the status of the workflow execution.
-	  * @param uuid
-	  * @return
-	  */
-	 @GetMapping("/status/{uuid}")
-		public ServerResponse status(@PathVariable String uuid) {
-			WorkflowExecutor executor = RunningPool.get(uuid);
-			AbstractExecutedResource resource = new AbstractExecutedResource();
-			if (executor != null) {
-				List<IProcess> processes = executor.getExecutedProcess();
-				resource.setStatus(ExecutorStatus.RUNNING);
-				for (IProcess process : processes) {
-					resource.addSuccess(process.getName());
-				}
+	@GetMapping("/running/all")
+	public ServerResponse Running() {
+		List<RunningResource> workflows = new ArrayList<ExecutionWorkflowController.RunningResource>();
+		for (String uuid : RunningPool.keySet()) {
+			RunningResource resource = new ExecutionWorkflowController.RunningResource();
+			resource.setUuid(uuid);
 
-				return new ServerResponse(200, ExecutorStatus.RUNNING.toString(), resource);
+			WorkflowExecutor executor = RunningPool.get(uuid);
+			IWorkflowInstance workflowInstance = executor.getEngine()
+					.getWorkflow();
+
+			resource.setIdentifier(workflowInstance.getID());
+			resource.setTitle(workflowInstance.getName());
+			resource.setDescription(workflowInstance.getDescription());
+			workflows.add(resource);
+		}
+		return new ServerResponse(200, "success", workflows);
+	}
+
+	/**
+	 * check the status of the workflow execution.
+	 * 
+	 * @param uuid
+	 * @return
+	 */
+	@GetMapping("/status/{uuid}")
+	public ServerResponse status(@PathVariable String uuid) {
+		WorkflowExecutor executor = RunningPool.get(uuid);
+		AbstractExecutedResource resource = new AbstractExecutedResource();
+		if (executor != null) {
+			List<IProcess> processes = executor.getExecutedProcess();
+			resource.setStatus(ExecutorStatus.RUNNING);
+			for (IProcess process : processes) {
+				resource.addSuccess(process.getName());
 			}
-			
-			ExecutedWorkflowInfo workflowInfo = execrepoitory.findWorkflowByTaskId(uuid);
-			if(workflowInfo == null)
-				return new ServerResponse(400, "no info with this id", "");
-			
-			if(workflowInfo.isSucceeded())
-				resource.setStatus(ExecutorStatus.SUCCEEDED);
-			else {
-				resource.setStatus(ExecutorStatus.FAILED);
-			}
-			
-			//resource.setId(workflowInfo.getId());
-			resource.setTitle(workflowInfo.getTitle());
-			resource.setDescription(workflowInfo.getDescription());		
-			return new ServerResponse(200, resource.getStatus().toString(), resource);
+
+			processes = executor.getFailedIProcess();
+
+			return new ServerResponse(200, ExecutorStatus.RUNNING.toString(),
+					resource);
 		}
 
-	 /**
-	  * update the executor pool
-	  */
+		ExecutedWorkflowInfo workflowInfo = execrepoitory
+				.findWorkflowByTaskId(uuid);
+		if (workflowInfo == null)
+			return new ServerResponse(400, "no info with this id", "");
+
+		if (workflowInfo.isSucceeded())
+			resource.setStatus(ExecutorStatus.SUCCEEDED);
+		else {
+			resource.setStatus(ExecutorStatus.FAILED);
+		}
+
+		// resource.setId(workflowInfo.getId());
+		resource.setTitle(workflowInfo.getTitle());
+		resource.setDescription(workflowInfo.getDescription());
+		return new ServerResponse(200, resource.getStatus().toString(),
+				resource);
+	}
+
+	/**
+	 * check the status of the workflow execution.
+	 * 
+	 * @param uuid
+	 * @return
+	 */
+	@GetMapping("/stop/{uuid}")
+	public ServerResponse stop(@PathVariable String uuid) {
+		WorkflowExecutor executor = RunningPool.get(uuid);
+		RunningPool.remove(uuid);
+		AbstractExecutedResource resource = new AbstractExecutedResource();
+
+		if (executor == null)
+			return new ServerResponse(400, "This task is not running", "");
+
+		executor.getEngine().dispose();
+
+		List<IProcess> processes = executor.getExecutedProcess();
+		// sresource.setStatus(ExecutorStatus.RUNNING);
+		for (IProcess process : processes) {
+			resource.addSuccess(process.getName());
+		}
+
+		processes = executor.getFailedIProcess();
+		for (IProcess process : processes) {
+			resource.addFailure(process.getName());
+		}
+
+		return new ServerResponse(200, "Stopped", resource);
+	}
+
+	/**
+	 * update the executor pool
+	 */
 	public synchronized void update() {
 		for (String uuid : RunningPool.keySet()) {
 			WorkflowExecutor executor = RunningPool.get(uuid);
@@ -152,17 +173,26 @@ public class ExecutionWorkflowController implements IListener{
 	}
 
 	public boolean save(String uuid, WorkflowExecutor executor) {
-		ExecutedWorkflowInfo workflowInfo = new ExecutedWorkflowInfoGenerator().generate(uuid, executor);
+		ExecutedWorkflowInfo workflowInfo = new ExecutedWorkflowInfoUtil()
+				.generate(uuid, executor);
 		execrepoitory.save(workflowInfo);
 		return true;
 	}
-	
+
 	@Override
 	public void onEvent(IProcessEvent arg0) {
 		this.update();
 	}
-	
-	private class RunningResource extends AbstractResource{
-		protected String uuid;
+
+	public class RunningResource extends AbstractResource {
+		private String uuid;
+
+		public String getUuid() {
+			return uuid;
+		}
+
+		public void setUuid(String uuid) {
+			this.uuid = uuid;
+		}
 	}
 }

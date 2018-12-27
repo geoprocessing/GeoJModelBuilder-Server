@@ -6,10 +6,9 @@ import java.util.List;
 import net.opengis.wps.x100.ProcessDescriptionType;
 import net.opengis.wps.x100.ProcessDescriptionsDocument;
 
+import org.apache.xmlbeans.XmlOptions;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.web.context.ServerPortInfoApplicationContextInitializer;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -58,7 +57,7 @@ public class WPSServiceController {
 			 ProcessDescriptionsDocument doc = ProcessDescriptionsDocument.Factory.newInstance();
 			 doc.addNewProcessDescriptions().setProcessDescriptionArray(new ProcessDescriptionType[]{process.getProcessDescriptionType()});
 //			 doc.addNewProcessDescriptions().setProcessDescriptionArray(0, process.getProcessDescriptionType());
-			 simpleProcess.setXmlText(doc.xmlText());
+			 simpleProcess.setXmlText(doc.xmlText(new XmlOptions().setSavePrettyPrint()));
 			 simpleProcess.setName(process.getName());
 //			 simpleProcess.setServiceId(serviceId);
 			 wpsService.getProcesses().add(simpleProcess);

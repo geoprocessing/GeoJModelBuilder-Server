@@ -13,6 +13,8 @@ import javax.persistence.Lob;
 import javax.persistence.ManyToOne;
 import javax.persistence.Table;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+
 /**
  * query the process execution information throw the task id and process id.
  * 
@@ -35,12 +37,16 @@ public class ExecutedProcessInfo  {
 	
 	@Column(name = "taskId")
 	private String taskId;
+	
+	private String output;
 
 	private String processId;
 	// execution task id
 	// whether executed successfully
 	private boolean succeeded;
+	@JsonFormat
 	private Date startTime;
+	@JsonFormat
 	private Date endTime;
 
 	@Lob
@@ -109,5 +115,11 @@ public class ExecutedProcessInfo  {
 
 	public void setErrInfo(String errInfo) {
 		this.errInfo = errInfo;
+	}
+	public String getOutput() {
+		return output;
+	}
+	public void setOutput(String output) {
+		this.output = output;
 	}
 }

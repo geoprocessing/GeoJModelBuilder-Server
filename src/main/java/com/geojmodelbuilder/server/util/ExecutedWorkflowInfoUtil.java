@@ -2,6 +2,8 @@ package com.geojmodelbuilder.server.util;
 
 import cn.edu.whu.geos.wls.x10.ProcessInstanceDocument;
 
+import com.geojmodelbuilder.core.IProcess;
+import com.geojmodelbuilder.core.instance.IProcessInstance;
 import com.geojmodelbuilder.core.instance.IWorkflowInstance;
 import com.geojmodelbuilder.core.provenance.IProcessProv;
 import com.geojmodelbuilder.core.provenance.IWorkflowProv;
@@ -10,7 +12,7 @@ import com.geojmodelbuilder.server.entities.ExecutedProcessInfo;
 import com.geojmodelbuilder.server.entities.ExecutedWorkflowInfo;
 import com.geojmodelbuilder.xml.serialization.Instance2XML;
 
-public class ExecutedWorkflowInfoGenerator {
+public class ExecutedWorkflowInfoUtil {
 	public ExecutedWorkflowInfo generate(String taskId, WorkflowExecutor executor){
 		IWorkflowInstance workflowInstance = executor.getEngine().getWorkflow();
 		ExecutedWorkflowInfo workflowInfo = new ExecutedWorkflowInfo();
@@ -37,6 +39,19 @@ public class ExecutedWorkflowInfoGenerator {
 			executedProcessInfo.setTaskId(taskId);
 			executedProcessInfo.setErrInfo(processProv.getErrInfo());
 			
+			IProcess process = processProv.getProcess();
+			if(process instanceof IProcessInstance ){
+				IProcessInstance processInstance = (IProcessInstance)process;
+				int size = processInstance.getOutputs().size();
+				if(size>0)
+				{
+					Object value = processInstance.getOutputs().get(0).getData().getValue();
+					if(value!=null)
+						executedProcessInfo.setOutput(value.toString());
+				}
+			}
+			
+			
 			ProcessInstanceDocument procDoc = instance2xml.getProcessDoc(processId);
 			if(procDoc!=null)
 				executedProcessInfo.setXmlText(procDoc.xmlText());
@@ -44,5 +59,12 @@ public class ExecutedWorkflowInfoGenerator {
 		}
 		
 		return workflowInfo;
+	}
+	
+	public static void exclueXML(ExecutedWorkflowInfo workflow ){
+		workflow.setXmlText("");
+		for(ExecutedProcessInfo process:workflow.getProcessInfos()){
+			process.setXmlText("");
+		}
 	}
 }

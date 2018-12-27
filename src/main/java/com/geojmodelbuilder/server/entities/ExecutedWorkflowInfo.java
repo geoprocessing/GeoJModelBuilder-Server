@@ -16,6 +16,8 @@ import javax.persistence.Lob;
 import javax.persistence.OneToMany;
 import javax.persistence.Table;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+
 /**
  * Excuted workflow 
  * @author mingda zhang
@@ -47,7 +49,9 @@ public class ExecutedWorkflowInfo extends AbstractResource implements Serializab
 	private String taskId;
 	//whether executed successfully
 	private boolean succeeded;
+	@JsonFormat
 	private Date startTime;
+	@JsonFormat
 	private Date endTime;
 
 	@Lob 
