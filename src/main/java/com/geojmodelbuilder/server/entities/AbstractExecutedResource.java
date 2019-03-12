@@ -31,4 +31,28 @@ public class AbstractExecutedResource extends AbstractResource{
     public void addRunning(String running){
     	this.runningProcess.add(running);
     }
+
+	public List<String> getRunningProcess() {
+		return runningProcess;
+	}
+
+	public void setRunningProcess(List<String> runningProcess) {
+		this.runningProcess = runningProcess;
+	}
+
+	public List<String> getSuccessList() {
+		return successList;
+	}
+
+	public void setSuccessList(List<String> successList) {
+		this.successList = successList;
+	}
+
+	public List<String> getFailureList() {
+		return failureList;
+	}
+
+	public void setFailureList(List<String> failureList) {
+		this.failureList = failureList;
+	}
 }

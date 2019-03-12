@@ -105,7 +105,16 @@ public class ExecutionWorkflowController implements IListener {
 			}
 
 			processes = executor.getFailedIProcess();
+			for(IProcess process:processes){
+				resource.addFailure(process.getName());
+			}
+			
+			processes = executor.getRunning();
 
+			for(IProcess process:processes){
+				resource.addRunning(process.getName());
+			}
+			
 			return new ServerResponse(200, ExecutorStatus.RUNNING.toString(),
 					resource);
 		}
