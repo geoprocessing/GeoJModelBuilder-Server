@@ -9,6 +9,7 @@ import net.opengis.wps.x100.ProcessDescriptionsDocument;
 import org.apache.xmlbeans.XmlOptions;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -113,5 +114,14 @@ public class WPSServiceController {
 			 return new ServerResponse(400, "there is no such process", "");
 		 
 		 return processSimple.getXmlText();
+	 }
+	 
+	 @GetMapping("/process/detail/{name}")
+	 public Object process(@PathVariable String name ){
+		 WPSProcessSimple process = processRepository.findProcessByName(name);
+		 if(process == null)
+			 return new ServerResponse(400, "there is no such process", "");
+
+		 return process.getXmlText();
 	 }
 }
