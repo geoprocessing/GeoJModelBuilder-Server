@@ -64,6 +64,31 @@ public class ExecutionWorkflowController implements IListener {
 	}
 
 	/**
+	 * executes the workflow
+	 * 
+	 * @param xmlText
+	 *            , xml text that represents the workflow
+	 * @return
+	 */
+	@PostMapping("/submit/{uuid}")
+	public ServerResponse add2(@RequestBody String xmlText,@PathVariable String uuid) {
+
+		XML2Instance xml2Instance = new XML2Instance();
+		WorkflowInstance workflowInstance = xml2Instance.parse(xmlText);
+
+		if (workflowInstance == null) {
+			String err = xml2Instance.getErrInfo();
+			return new ServerResponse(400, "Failure", err);
+		}
+		WorkflowExecutor executor = new WorkflowExecutor(workflowInstance);
+		executor.run();
+		executor.getEngine().subscribe(this, EventType.Stopped);
+		RunningPool.put(uuid, executor);
+
+		return new ServerResponse(200, "success", uuid);
+	}
+	
+	/**
 	 * return all the workflows that are running.
 	 * 
 	 * @return
