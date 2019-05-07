@@ -162,6 +162,57 @@ public class ExecutionWorkflowController implements IListener {
 				resource);
 	}
 
+	@GetMapping("/status2/{uuid}")
+	public ServerResponse status2(@PathVariable String uuid) {
+		WorkflowExecutor executor = RunningPool.get(uuid);
+		AbstractExecutedResource resource = new AbstractExecutedResource();
+		if (executor != null) {
+			List<IProcess> processes = executor.getExecutedProcess();
+			resource.setStatus(ExecutorStatus.RUNNING);
+			for (IProcess process : processes) {
+				resource.addSuccess(process.getID());
+			}
+
+			processes = executor.getFailedIProcess();
+			for(IProcess process:processes){
+				resource.addFailure(process.getID());
+			}
+			
+			processes = executor.getRunning();
+
+			for(IProcess process:processes){
+				resource.addRunning(process.getID());
+			}
+			
+			
+			int finishedNo = executor.getEngine().getWorkflow().getProcesses().size();
+			if(finishedNo==resource.getSuccessList().size()){
+				if(RunningPool.containsKey(uuid))
+					RunningPool.remove(uuid);
+			}
+				
+			return new ServerResponse(200, ExecutorStatus.RUNNING.toString(),
+					resource);
+		}
+
+		ExecutedWorkflowInfo workflowInfo = execrepoitory
+				.findWorkflowByTaskId(uuid);
+		if (workflowInfo == null)
+			return new ServerResponse(400, "no info with this id", "");
+
+		if (workflowInfo.isSucceeded())
+			resource.setStatus(ExecutorStatus.SUCCEEDED);
+		else {
+			resource.setStatus(ExecutorStatus.FAILED);
+		}
+
+		// resource.setId(workflowInfo.getId());
+		resource.setTitle(workflowInfo.getTitle());
+		resource.setDescription(workflowInfo.getDescription());
+		return new ServerResponse(200, resource.getStatus().toString(),
+				resource);
+	}
+	
 	/**
 	 * check the status of the workflow execution.
 	 * 
