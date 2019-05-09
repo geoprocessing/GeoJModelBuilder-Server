@@ -3,9 +3,13 @@ package com.geojmodelbuilder.server.controllers;
 import java.util.ArrayList;
 import java.util.List;
 
+import net.opengis.wps.x100.InputDescriptionType;
+import net.opengis.wps.x100.OutputDescriptionType;
 import net.opengis.wps.x100.ProcessDescriptionType;
+import net.opengis.wps.x100.ProcessDescriptionType.DataInputs;
 import net.opengis.wps.x100.ProcessDescriptionsDocument;
 
+import org.apache.xmlbeans.XmlException;
 import org.apache.xmlbeans.XmlOptions;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -123,5 +127,88 @@ public class WPSServiceController {
 			 return new ServerResponse(400, "there is no such process", "");
 
 		 return process.getXmlText();
+	 }
+	 
+	 @GetMapping("/process/inout/{name}")
+	 public Object processInOut(@PathVariable String name ){
+		 WPSProcessSimple process = processRepository.findProcessByName(name);
+		 if(process == null)
+			 return new ServerResponse(400, "there is no such process", "");
+		
+		 ProcessDescriptionsDocument processDescriptionDoc = null;
+		 try {
+			processDescriptionDoc = ProcessDescriptionsDocument.Factory.parse(process.getXmlText());
+		} catch (XmlException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return new ServerResponse(400, "fail to parse the xml", process.getXmlText());
+		}
+		 
+		 ProcessSimple processSimple = new ProcessSimple();
+		 ProcessDescriptionType processDescriptionType = processDescriptionDoc.getProcessDescriptions().getProcessDescriptionArray(0);
+		 
+		 String processName = processDescriptionType.getIdentifier().getStringValue().trim();
+		 processSimple.setName(processName);
+		 String processDesc = processDescriptionType.getAbstract().getStringValue().trim();
+		 processSimple.setDescription(processDesc);
+		 
+		 DataInputs dataInputs = processDescriptionType.getDataInputs();
+			InputDescriptionType[] inputDescriptionTypes = dataInputs
+					.getInputArray();
+			for (InputDescriptionType input : inputDescriptionTypes) {
+				
+				String inputname = input.getIdentifier().getStringValue().trim();
+				processSimple.addInput(inputname);
+			}
+
+			OutputDescriptionType[] outputDescriptionTypes = processDescriptionType.getProcessOutputs().getOutputArray();
+			for (OutputDescriptionType output : outputDescriptionTypes) {
+				String outname = output.getIdentifier().getStringValue().trim();
+				processSimple.addOutput(outname);
+			}
+		 
+		  return new ServerResponse(200, "success", processSimple);
+	 }
+	 
+	 public class ProcessSimple{
+		 private String description;
+		 private String name;
+		 private List<String> inputs = new ArrayList<String>();
+		 private List<String> outputs = new ArrayList<String>();
+		 
+		 public void addInput(String name){
+			 if(!this.inputs.contains(name))
+				 this.inputs.add(name);
+		 }
+		 
+		 public void addOutput(String name){
+			 if(!this.outputs.contains(name))
+				 this.outputs.add(name);
+		 }
+		 
+		 public void setDescription(String description){
+			 this.description = description;
+		 }
+		 
+		 public void setName(String name)
+		 {
+			 this.name = name;
+		 }
+		 
+		 public String getName(){
+			 return this.name;
+		 }
+		 
+		 public String getDescription(){
+			 return this.description;
+		 }
+		 
+		 public List<String> getInputs(){
+			 return this.inputs;
+		 }
+		 
+		 public List<String> getOutputs(){
+			 return this.outputs;
+		 }
 	 }
 }
