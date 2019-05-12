@@ -1,7 +1,11 @@
 package com.geojmodelbuilder.server.controllers;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 import net.opengis.wps.x100.InputDescriptionType;
 import net.opengis.wps.x100.OutputDescriptionType;
@@ -11,13 +15,24 @@ import net.opengis.wps.x100.ProcessDescriptionsDocument;
 
 import org.apache.xmlbeans.XmlException;
 import org.apache.xmlbeans.XmlOptions;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.geojmodelbuilder.core.data.IData;
+import com.geojmodelbuilder.core.data.impl.ComplexData;
+import com.geojmodelbuilder.core.data.impl.LiteralData;
+import com.geojmodelbuilder.core.instance.IInputParameter;
+import com.geojmodelbuilder.core.instance.IOutputParameter;
+import com.geojmodelbuilder.core.instance.impl.InputParameter;
+import com.geojmodelbuilder.core.instance.impl.OutputParameter;
 import com.geojmodelbuilder.core.resource.ogc.wps.WPSProcess;
 import com.geojmodelbuilder.core.resource.ogc.wps.WPService;
 import com.geojmodelbuilder.server.ServerResponse;
@@ -129,6 +144,111 @@ public class WPSServiceController {
 		 return process.getXmlText();
 	 }
 	 
+
+	 @PostMapping("/process/execution/{name}")
+	 public Object process_execution(@PathVariable String name,@RequestBody String inputs){
+		 String outputformat = "outputformat";
+		/* JSONObject jsonObject = null;
+		 try {
+			jsonObject = new JSONObject(inputs);
+		} catch (JSONException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+			return new ServerResponse(400, "fail to parse the json", null);
+		}*/
+		 
+		 
+		 WPSProcessSimple process = processRepository.findProcessByName(name);
+		 if(process == null)
+			 return new ServerResponse(400, "there is no such process", "");
+		
+
+		 Map<String, String> inputMap = new HashMap<String, String>();
+		 
+		 String[] pairs = inputs.split(",");
+		 for (int i=0;i<pairs.length;i++) {
+		     String pair = pairs[i];
+		     String[] keyValue = pair.split("=");
+		     inputMap.put(keyValue[0], keyValue[1]);
+		 }
+		 
+		 Optional<WPSServiceSimple> wpsOptional = wpsRepository.findById(process.getServiceId());
+		 if(!wpsOptional.isPresent())
+			 return new ServerResponse(400, "there is no service that contains this process ", "");
+		 
+		 WPSServiceSimple wps = wpsOptional.get();
+		 
+		 WPSProcess wpsProcess = new WPSProcess(name);
+		 wpsProcess.setWPSUrl(wps.getUrl());
+		 
+		 ProcessDescriptionsDocument processDescriptionDoc = null;
+		 try {
+			processDescriptionDoc = ProcessDescriptionsDocument.Factory.parse(process.getXmlText());
+		} catch (XmlException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return new ServerResponse(400, "fail to parse the description xml", process.getXmlText());
+		}
+		 
+		 ProcessDescriptionType processDescriptionType = processDescriptionDoc.getProcessDescriptions().getProcessDescriptionArray(0);
+		 wpsProcess.setProcessDescriptionType(processDescriptionType);
+		 
+		 
+		 for(String inputname:inputMap.keySet()){
+			// String inputname = it.next().toString();
+			 if(inputname.equalsIgnoreCase(outputformat))
+				 continue;
+			 
+			 String value = inputMap.get(inputname);
+			
+			 IData data = null;
+            // IInputParameter inputParam = new InputParameter(wpsProcess);
+			 IInputParameter inputParam = wpsProcess.getInput(inputname);
+			 if(inputParam==null)
+				 return new ServerResponse(400, "there is no input named ", inputname);
+			 
+             String[] values = value.split("@");
+			 if(value.startsWith("http") || value.startsWith("Http")){
+				 data = new ComplexData();
+				 data.setValue(values[0]);
+				 data.setType(values[1]);
+			 }else {
+				 data = new LiteralData();
+				 data.setValue(values[0]);
+			}
+			 inputParam.setData(data);
+			 inputParam.setName(inputname);
+			// wpsProcess.addInput(inputParam);
+		 }
+		 
+		
+		 OutputDescriptionType[] outputDescriptionTypes = processDescriptionType.getProcessOutputs().getOutputArray();
+			for (OutputDescriptionType output : outputDescriptionTypes) {
+				String outname = output.getIdentifier().getStringValue().trim();
+				IOutputParameter outputParam = wpsProcess.getOutput(outname);
+//				outputParam.setName(outname);
+				IData data = new ComplexData();
+				
+				data.setType(inputMap.get(outputformat));
+				outputParam.setData(data);
+				//wpsProcess.addOutput(outputParam);
+			}
+		 
+		if(!wpsProcess.canExecute())
+			 return new ServerResponse(400, "cannot execute this process", wpsProcess.getErrInfo()); 
+			
+		if(!wpsProcess.execute())
+			return new ServerResponse(400, "fail to execute this process", wpsProcess.getErrInfo()); 
+		
+		List<IOutputParameter> outputs = wpsProcess.getOutputs();
+		Map<String, String> outputMap = new HashMap<String, String>();
+		for(IOutputParameter outparam:outputs){
+			outputMap.put(outparam.getName(), outparam.getData().getValue().toString());
+		}
+		
+		return new ServerResponse(200, "success", outputMap); 
+	 }
+
 	 @GetMapping("/process/inout/{name}")
 	 public Object processInOut(@PathVariable String name ){
 		 WPSProcessSimple process = processRepository.findProcessByName(name);
