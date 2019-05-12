@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -73,4 +74,23 @@ public class ExecutedWorkflowController {
 		return new ServerResponse(200, "success", list);
 	}
 
+	/**
+	 * get all the executed workflows
+	 * @return
+	 */
+	@GetMapping("/{refid}/all")
+	public ServerResponse refIdall(@PathVariable String refid){
+		Iterable<ExecutedWorkflowInfo> workflows = execrepoitory.findWorkflowByRefId(refid);
+		
+		if(workflows==null){
+			return new ServerResponse(400, "no task with this reference id", "");
+		}
+		List<ExecutedWorkflowInfo> list = new ArrayList<ExecutedWorkflowInfo>();
+		for(ExecutedWorkflowInfo workflow:workflows){
+			ExecutedWorkflowInfoUtil.exclueXML(workflow);
+			list.add(workflow);
+		}
+		
+		return new ServerResponse(200, "success", list);
+	}
 }

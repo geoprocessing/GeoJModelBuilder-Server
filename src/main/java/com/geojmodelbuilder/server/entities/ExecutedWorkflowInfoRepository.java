@@ -7,4 +7,6 @@ public interface ExecutedWorkflowInfoRepository extends CrudRepository<ExecutedW
 	@Query("select w from ExecutedWorkflowInfo w where w.taskId = ?1")
 	ExecutedWorkflowInfo findWorkflowByTaskId(String taskId);
 	
+	@Query("select w from ExecutedWorkflowInfo w where w.identifier = ?1")
+	Iterable<ExecutedWorkflowInfo> findWorkflowByRefId(String refId);
 }
