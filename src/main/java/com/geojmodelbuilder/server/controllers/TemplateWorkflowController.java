@@ -111,4 +111,20 @@ public class TemplateWorkflowController {
 		
 		return new ServerResponse(200, "no value", "there is no recod with this id");
 	 }
+	 
+	 @GetMapping("/description/{identifier}")
+	 public ServerResponse description(@PathVariable String identifier)
+	 {
+		 TemplateWorkflowInfo  workflowInfo = repository.findWorkflowById(identifier);
+		 if(workflowInfo == null)
+			 return new ServerResponse(400, "there is no workflow with this id", null);
+		
+		AbstractResource resource = new AbstractResource();
+			 //resource.setId(workflowInfo.getId());
+	    resource.setIdentifier(workflowInfo.getIdentifier());
+	    resource.setTitle(workflowInfo.getTitle());
+	    resource.setDescription(workflowInfo.getDescription());
+			
+		return new ServerResponse(200, "success", resource);
+	 }
 }
