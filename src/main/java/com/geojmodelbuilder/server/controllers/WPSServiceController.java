@@ -2,7 +2,6 @@ package com.geojmodelbuilder.server.controllers;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -15,8 +14,6 @@ import net.opengis.wps.x100.ProcessDescriptionsDocument;
 
 import org.apache.xmlbeans.XmlException;
 import org.apache.xmlbeans.XmlOptions;
-import org.json.JSONException;
-import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -31,15 +28,15 @@ import com.geojmodelbuilder.core.data.impl.ComplexData;
 import com.geojmodelbuilder.core.data.impl.LiteralData;
 import com.geojmodelbuilder.core.instance.IInputParameter;
 import com.geojmodelbuilder.core.instance.IOutputParameter;
-import com.geojmodelbuilder.core.instance.impl.InputParameter;
-import com.geojmodelbuilder.core.instance.impl.OutputParameter;
 import com.geojmodelbuilder.core.resource.ogc.wps.WPSProcess;
 import com.geojmodelbuilder.core.resource.ogc.wps.WPService;
 import com.geojmodelbuilder.server.ServerResponse;
+import com.geojmodelbuilder.server.entities.DesProcessInstance;
 import com.geojmodelbuilder.server.entities.WPSProcessRepository;
 import com.geojmodelbuilder.server.entities.WPSProcessSimple;
 import com.geojmodelbuilder.server.entities.WPSServiceRepository;
 import com.geojmodelbuilder.server.entities.WPSServiceSimple;
+import com.geojmodelbuilder.server.util.WPSDesGenerator;
 
 @RestController
 @RequestMapping(path="/service") 
@@ -288,6 +285,35 @@ public class WPSServiceController {
 			}
 		 
 		  return new ServerResponse(200, "success", processSimple);
+	 }
+
+	 @GetMapping("/process/info/{name}")
+	 public Object processinfo(@PathVariable String name ){
+		 WPSProcessSimple process = processRepository.findProcessByName(name);
+		 if(process == null)
+			 return new ServerResponse(400, "there is no such process", "");
+		
+		 ProcessDescriptionsDocument processDescriptionDoc = null;
+		 try {
+			processDescriptionDoc = ProcessDescriptionsDocument.Factory.parse(process.getXmlText());
+		} catch (XmlException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return new ServerResponse(400, "fail to parse the xml", process.getXmlText());
+		}
+		 
+		 ProcessDescriptionType processDescriptionType = processDescriptionDoc.getProcessDescriptions().getProcessDescriptionArray(0);
+		 WPSProcess wpsProcess = new WPSProcess(name);
+		
+		 wpsProcess.setProcessDescriptionType(processDescriptionType);
+	/*	 ProcessInstance instance = new ProcessInstance();
+		 instance.setName(wpsProcess.getName());
+		 instance.setDescription(wpsProcess.getDescription());
+		 instance.addInput(wpsProcess.getInputs().get(0));
+		 instance.addOutput(wpsProcess.getOutputs().get(0));*/
+		 
+		 DesProcessInstance instance2 = WPSDesGenerator.DesInstance(wpsProcess);
+		  return new ServerResponse(200, "success", instance2);
 	 }
 	 
 	 public class ProcessSimple{
