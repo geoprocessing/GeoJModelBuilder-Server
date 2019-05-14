@@ -63,6 +63,34 @@ public class TemplateWorkflowController {
 		 return new ServerResponse(200, "success", workflowInfo.getId());
 	 }
 	 
+	 @PostMapping("/update/{identifier}")
+	 public ServerResponse update(@RequestBody String xmlText,@PathVariable String identifier){
+		 
+		 TemplateWorkflowInfo  workflowInfo = repository.findWorkflowById(identifier);
+		 if(workflowInfo==null)
+			return new ServerResponse(400, "Failed", "there is no workflow with this id");
+			
+		 XML2Instance xml2Instance = new XML2Instance();
+		 WorkflowInstance workflowInstance = xml2Instance.parse(xmlText);
+		 
+		 if(workflowInstance == null)
+		 {
+			 String err = xml2Instance.getErrInfo();
+			 return new ServerResponse(400, "Failed to parse the xml", err);
+		 }
+		 
+		 workflowInfo.setTitle(workflowInstance.getName());
+		 workflowInfo.setDescription(workflowInstance.getDescription());
+		 
+		 workflowInfo.setIdentifier(workflowInstance.getID());
+		 workflowInfo.setXmlText(xmlText);
+		 
+		 //workflowDb.save(workflowInfo);
+		 repository.save(workflowInfo);
+		 
+		 return new ServerResponse(200, "success", workflowInfo.getId());
+	 }
+	 
 	 /**
 	  * returns all template workflows
 	  * @return
