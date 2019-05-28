@@ -1,5 +1,7 @@
 package com.geojmodelbuilder.server.controllers;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -306,14 +308,72 @@ public class WPSServiceController {
 		 WPSProcess wpsProcess = new WPSProcess(name);
 		
 		 wpsProcess.setProcessDescriptionType(processDescriptionType);
-	/*	 ProcessInstance instance = new ProcessInstance();
-		 instance.setName(wpsProcess.getName());
-		 instance.setDescription(wpsProcess.getDescription());
-		 instance.addInput(wpsProcess.getInputs().get(0));
-		 instance.addOutput(wpsProcess.getOutputs().get(0));*/
-		 
 		 DesProcessInstance instance2 = WPSDesGenerator.DesInstance(wpsProcess);
-		  return new ServerResponse(200, "success", instance2);
+		 return new ServerResponse(200, "success", instance2);
+	 }
+	 
+	 
+	 @PostMapping("/process/update/{name}")
+	 public Object processupdate(@PathVariable String name,@RequestBody String xmlText ){
+		 WPSProcessSimple process = processRepository.findProcessByName(name);
+		 if(process == null)
+			 return new ServerResponse(400, "there is no such process", "");
+		
+		 //ProcessDescriptionsDocument processDescriptionDoc = null;
+		 try {
+			 ProcessDescriptionsDocument.Factory.parse(xmlText);
+		} catch (XmlException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return new ServerResponse(400, "fail to parse the xml", e.getMessage());
+		}
+		 
+		 process.setXmlText(xmlText);
+		 
+		processRepository.save(process);
+		 return new ServerResponse(200, "success", process.getName());
+	 }
+	 
+	 @GetMapping("/process/update/batch")
+	 public Object processupdate_batch(@RequestParam String dir ){
+		 File folder = new File(dir);
+		 if(!folder.isDirectory()){
+			 return new ServerResponse(400, "please input a direction", null);
+		 }
+		 File[] files = folder.listFiles();
+		 for(File file:files){
+			 if(file.isDirectory())
+				 continue;
+			 
+			 String fileName = file.getName();
+			 System.out.println(fileName);
+			 String name = fileName.substring(0, fileName.indexOf("."));
+			 
+			 WPSProcessSimple process = null;
+			 try {
+				 process= processRepository.findProcessByName(name);
+				 if(process == null)
+					// return new ServerResponse(400, "there is no such process", "");
+					 continue;
+			} catch (Exception e) {
+				// TODO: handle exception
+				System.err.println(e.getMessage());
+			}
+			
+			 //ProcessDescriptionsDocument processDescriptionDoc = null;
+			 try {
+				ProcessDescriptionsDocument document = ProcessDescriptionsDocument.Factory.parse(file);
+				process.setXmlText(document.xmlText());
+			} catch (XmlException | IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+				return new ServerResponse(400, "fail to parse the xml", e.getMessage());
+			}
+			processRepository.save(process);
+			 
+		 }
+		
+		 return new ServerResponse(200, "success", null);
 	 }
 	 
 	 public class ProcessSimple{

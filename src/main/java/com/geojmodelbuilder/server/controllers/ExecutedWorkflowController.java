@@ -41,6 +41,22 @@ public class ExecutedWorkflowController {
 		 return workflowInfo;
 //		 return workflowInfo.getXmlText();
 	 }
+	
+	@GetMapping("/detail/{uuid}")
+	public Object detail2(@PathVariable("uuid") String uuid) {
+		 ExecutedWorkflowInfo workflowInfo = execrepoitory.findWorkflowByTaskId(uuid);
+		 if(workflowInfo == null)
+			 return new ServerResponse(400, "no task with this id", "");
+		 /*
+		 XML2Instance xml2Instance = new XML2Instance();
+		 IWorkflowInstance workflowInstance = xml2Instance.parse(workflowInfo.getXmlText());
+		 
+		 return workflowInstance;
+		 */
+		 
+		 return workflowInfo;
+//		 return workflowInfo.getXmlText();
+	 }
 	 
 	/**
 	 * return the execution information
